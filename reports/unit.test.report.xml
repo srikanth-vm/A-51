@@ -1,9 +1,0 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<testsuites name='A_51Tests.xctest' tests='4' failures='0'>
-  <testsuite name='A_51Tests.A_51Tests' tests='4' failures='0'>
-    <testcase classname='A_51Tests.A_51Tests' name='testAddition' time='0.011'/>
-    <testcase classname='A_51Tests.A_51Tests' name='testDivision' time='0.005'/>
-    <testcase classname='A_51Tests.A_51Tests' name='testMultiplication' time='0.002'/>
-    <testcase classname='A_51Tests.A_51Tests' name='testSubtraction' time='0.002'/>
-  </testsuite>
-</testsuites>
