@@ -1,0 +1,147 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+spm_cache_dir = "~/spm-cache/com.vsco.a_51"
+
+platform :ios do
+
+  desc "Notify that app is about to be built based on the options"
+  before_all do |lane, options|
+    Dotenv.overload ".env.ios"
+    UI.message "Current Path: #{ENV['FL_CURRENT_PATH']}"
+    UI.message "Build Path: #{ENV['FL_BUILD_PATH']}"
+
+    UI.message "Clearing SPM Cache directory."
+    sh "rm -rf ~/Library/Caches/org.swift.swiftpm"
+    sh "rm -rf #{spm_cache_dir}"
+
+    UI.message "Creating empty SPM Cache directories."
+    sh "mkdir -p #{spm_cache_dir}"
+
+    UI.message "Clearing Derived Data."
+    clear_derived_data
+  end
+  
+  # Unit Tests
+
+  desc "Description of what the lane does"
+  lane :unit_tests do
+    UI.message "Running unit tests."
+    run_tests(
+      clean: true,
+      scheme: "A_51",
+      output_types: "html,junit",
+      output_files: "unit.test.html,unit.test.report.xml",
+      output_directory: "./reports",
+      force_quit_simulator: true,
+      prelaunch_simulator: true,
+      reset_simulator: true,
+      cloned_source_packages_path: spm_cache_dir,
+    )
+    # sh("touch .env.out")
+    # sh("echo export FL_UNIT_TESTS='4' >> .env.out")
+    # sh("pwd")
+    # sh("ls -la")
+    #sh "FL_UNIT_TESTS='4'"
+    #sh "export FL_UNIT_TESTS"
+  end
+
+  # MS Teams
+
+  desc "Notify on Teams"
+  lane :notify_teams do
+    ms_teams(
+      title: "Fastlane Test",
+      message: "This is a test message",
+      teams_url: "https://lbrands.webhook.office.com/webhookb2/1fd158c6-3bd5-4564-83ac-11c48631bb97@865f3fef-b96b-4b1d-a7b6-0b4b3fcfc87e/IncomingWebhook/8bba9a23ddcb40f5b1b0e474932a209d/45298129-8e11-40fc-8db9-d4a94ecf4bd5"
+    )
+  end
+
+  # SwiftLint
+
+  desc "Run Swift Lint"
+  lane :lint do
+    swiftlint(
+      mode: :lint,
+      output_file: "./reports/swiftlint.html",
+      reporter: "html",
+      ignore_exit_status: true
+    )
+  end
+
+  # Build and Upload to Test Fairy.
+  desc "Build IPA"
+  lane :build_binary do |options|
+    current_path = ENV['FL_CURRENT_PATH']
+    build_path = ENV['FL_BUILD_PATH']
+    code_sign_dir = "#{current_path}/../code_sign"
+    setupCodeSigning("Limited1!", "Limited1!", "#{code_sign_dir}/Limited_Brands_WildCard.mobileprovision", "#{code_sign_dir}/lbrands_distribution.p12")
+
+    export_options = {
+      method: "enterprise",
+      compileBitcode: true,
+      uploadBitcode: true,
+      stripSwiftSymbols: true,
+      uploadSymbols: true,
+    }
+    begin
+      gym(
+        scheme: "A_51",
+        clean: true,
+        output_directory: build_path,
+        export_options: export_options,
+        output_name: "Z_Harness_Test_iOS.ipa"
+      )
+
+      testfairy(
+        api_key: "b7f4538676b8f0f038f66f50c67e40b7c86ddd48",
+        ipa: "#{build_path}/Z_Harness_Test_iOS.ipa",
+        upload_url: "https://lb.testfairy.com/api/upload",
+        comment: "Harness Test Build"
+      )
+    rescue => e
+      sh("cat /Users/harness/Library/Logs/gym/A_51-A_51.log")
+    end
+  end
+
+  def setupCodeSigning(keychainPassword, certificatePassword, profilePath, certificatePath)
+    current_path = ENV['FL_CURRENT_PATH']
+    build_path = ENV['FL_BUILD_PATH']
+    code_sign_dir = "#{current_path}/../code_sign"
+    create_keychain(
+      name: "CI",
+      password: keychainPassword,
+      default_keychain: false,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: false,
+    )
+    install_provisioning_profile(path: profilePath)
+    import_certificate(
+      certificate_path: certificatePath,
+      certificate_password: certificatePassword,
+      keychain_name: "CI",
+      keychain_password: keychainPassword,
+    )
+    import_certificate(
+      certificate_path: "#{code_sign_dir}/AppleWWDRCAG3.cer",
+      keychain_name: "CI",
+      keychain_password: keychainPassword,
+    )
+  end
+
+end
