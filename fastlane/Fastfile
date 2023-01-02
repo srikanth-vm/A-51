@@ -51,6 +51,7 @@ platform :ios do
       prelaunch_simulator: true,
       reset_simulator: true,
       cloned_source_packages_path: spm_cache_dir,
+      device: "iPhone 13"
     )
     # sh("touch .env.out")
     # sh("echo export FL_UNIT_TESTS='4' >> .env.out")
